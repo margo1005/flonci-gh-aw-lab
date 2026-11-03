@@ -1,0 +1,33 @@
+name: Laboratory deterministic QA
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: laboratory-qa
+  cancel-in-progress: false
+jobs:
+  laboratory_qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: "22.22.0"
+      - run: node --test scripts/policy.test.mjs
+      - name: Confirm starter is not falsely accepted
+        shell: bash
+        run: |
+          if node scripts/local-acceptance.mjs > baseline.log 2>&1; then
+            echo "Starter unexpectedly passed; review the frozen baseline."
+            exit 1
+          fi
+          grep -Eq "(tests 16)" baseline.log
+          grep -Eq "(pass 0)" baseline.log
+          grep -Eq "(fail 16)" baseline.log
+          echo "Expected 16-case failure confirmed. This does not establish feature acceptance."
+      - name: Verify networkless container protocol
+        run: node scripts/sandbox-smoke.mjs

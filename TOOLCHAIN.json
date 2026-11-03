@@ -1,0 +1,16 @@
+{
+  "gh": {
+    "version": "2.103.3",
+    "sha256": "98d0cfa794721665d7973dd728c78aff7bd836d58f10f6d7a03568eccb0a22e0"
+  },
+  "gh_aw": {
+    "version": "1.0.1",
+    "commit": "0627fdbe4beb5f3b71aa569f8d97150b87f2111a",
+    "windows_sha256": "1998b3443f0f7c85604ba8cdee897834033484d77daad9ff4e56d386c6e06d07"
+  },
+  "codex": "0.164.0",
+  "model": "gpt-6.1-sol",
+  "node": "22.22.0",
+  "verifier_image": "sha256:e4bf2a82ad0a4037d28035ae71529873c069b13eb0455466ae0bc13363826e34",
+  "frozen_suite_sha256": "ac100cdc9a9b8c9626dfbffec4a60ccf743ceec60c4deb125a1f08cb2070b4c2"
+}

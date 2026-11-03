@@ -1,0 +1,129 @@
+{
+  "id": "HEB-BUDGET-001",
+  "request": "אני רוצה לבדוק טווח תקציב בשקלים ולקבל הודעה ברורה בעברית. שני הסכומים חובה, חייבים להיות מספרים גדולים מאפס עם עד שתי ספרות אחרי הנקודה, והמקסימום לא יכול להיות קטן מהמינימום. סכומים שווים מותרים. יש להתעלם מרווחים מסביב לצורך הבדיקה, אבל להחזיר את הטקסט המקורי כפי שהוזן. אין לשמור מידע או לפנות לשירות חיצוני.",
+  "messages": {
+    "required": "יש להזין תקציב מינימלי ומקסימלי.",
+    "number": "יש להזין סכומים מספריים בלבד.",
+    "precision": "יש להזין סכומים עם עד שתי ספרות אחרי הנקודה.",
+    "positive": "התקציב חייב להיות גדול מאפס.",
+    "order": "התקציב המקסימלי חייב להיות גדול או שווה למינימלי.",
+    "ok": "טווח התקציב תקין."
+  },
+  "vectors": [
+    [
+      "missing minimum",
+      "",
+      "100",
+      "required"
+    ],
+    [
+      "missing maximum",
+      "100",
+      "",
+      "required"
+    ],
+    [
+      "blank minimum",
+      " ",
+      "200",
+      "required"
+    ],
+    [
+      "letters",
+      "א",
+      "200",
+      "number"
+    ],
+    [
+      "nonfinite",
+      "100",
+      "Infinity",
+      "number"
+    ],
+    [
+      "exponent",
+      "1e2",
+      "200",
+      "number"
+    ],
+    [
+      "negative minimum",
+      "-1",
+      "100",
+      "positive"
+    ],
+    [
+      "zero minimum",
+      "0",
+      "100",
+      "positive"
+    ],
+    [
+      "negative maximum",
+      "100",
+      "-1",
+      "positive"
+    ],
+    [
+      "zero maximum",
+      "100",
+      "0",
+      "positive"
+    ],
+    [
+      "reversed",
+      "200",
+      "100",
+      "order"
+    ],
+    [
+      "equal",
+      "100",
+      "100",
+      "ok"
+    ],
+    [
+      "increasing",
+      "100",
+      "200",
+      "ok"
+    ],
+    [
+      "trim without replacing inputs",
+      " 100 ",
+      " 200 ",
+      "ok"
+    ],
+    [
+      "decimal cents",
+      "1.25",
+      "2.50",
+      "ok"
+    ],
+    [
+      "too precise",
+      "1.001",
+      "2.00",
+      "precision"
+    ]
+  ],
+  "interface": "validateBudget(min:string,max:string) returns {ok,code,message,values:{min,max}}",
+  "precedence": [
+    "required",
+    "number",
+    "precision",
+    "positive",
+    "order",
+    "ok"
+  ],
+  "numberGrammar": "optional leading ASCII minus, one or more ASCII digits, optional period and one or more digits; no exponent, separators, plus sign or nonfinite values",
+  "allowedFiles": [
+    "src/budget.mjs"
+  ],
+  "attempts": 2,
+  "concurrency": 1,
+  "merge": false,
+  "deployment": false,
+  "network": "none except managed model gateway",
+  "schedule": false
+}
