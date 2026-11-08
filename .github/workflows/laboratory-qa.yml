@@ -1,33 +1,101 @@
-name: Laboratory deterministic QA
-on:
-  workflow_dispatch:
-permissions:
-  contents: read
-concurrency:
-  group: laboratory-qa
-  cancel-in-progress: false
-jobs:
-  laboratory_qa:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 3
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
-        with:
-          node-version: "22.22.0"
-      - run: node --test scripts/policy.test.mjs scripts/transport.test.mjs
-      - name: Confirm starter is not falsely accepted
-        shell: bash
-        run: |
-          if node scripts/local-acceptance.mjs > baseline.log 2>&1; then
-            echo "Starter unexpectedly passed; review the frozen baseline."
-            exit 1
-          fi
-          grep -Eq "(tests 16)" baseline.log
-          grep -Eq "(pass 0)" baseline.log
-          grep -Eq "(fail 16)" baseline.log
-          echo "Expected 16-case failure confirmed. This does not establish feature acceptance."
-      - name: Verify networkless container protocol
-        run: node scripts/sandbox-smoke.mjs
+{
+  "name": "GH-AW-TRANSPORT-01 frozen acceptance replay",
+  "on": {
+    "workflow_dispatch": {
+      "inputs": {
+        "approved_runner_sha": {
+          "description": "Exact separately approved replay-runner commit",
+          "required": true,
+          "type": "string"
+        },
+        "approval_expires": {
+          "description": "UTC expiry, at most one hour from approval",
+          "required": true,
+          "type": "string"
+        }
+      }
+    }
+  },
+  "permissions": {
+    "contents": "read",
+    "actions": "read"
+  },
+  "concurrency": {
+    "group": "heb-transport-01-replay",
+    "cancel-in-progress": false
+  },
+  "jobs": {
+    "acceptance_replay": {
+      "runs-on": "ubuntu-24.04",
+      "timeout-minutes": 8,
+      "env": {
+        "APPROVED_RUNNER_SHA": "${{ inputs.approved_runner_sha }}",
+        "APPROVAL_EXPIRES": "${{ inputs.approval_expires }}"
+      },
+      "steps": [
+        {
+          "name": "Check exact approved dispatch before checkout",
+          "shell": "bash",
+          "run": "node --input-type=module <<'NODE'\nimport assert from 'node:assert/strict';\nconst e=process.env;\nassert.equal(e.GITHUB_REPOSITORY,'margo1005/flonci-gh-aw-lab');\nassert.equal(e.GITHUB_ACTOR,'margo1005');\nassert.equal(e.GITHUB_EVENT_NAME,'workflow_dispatch');\nassert.equal(e.GITHUB_RUN_ATTEMPT,'1');\nassert.equal(e.GITHUB_REF,'refs/heads/verify/gh-aw-transport-01');\nassert.match(e.APPROVED_RUNNER_SHA,/^[a-f0-9]{40}$/);\nassert.equal(e.GITHUB_SHA,e.APPROVED_RUNNER_SHA);\nconst remaining=Date.parse(e.APPROVAL_EXPIRES)-Date.now();\nassert(remaining>0 && remaining<=3600000);\nNODE"
+        },
+        {
+          "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "with": {
+            "ref": "${{ github.sha }}",
+            "persist-credentials": false,
+            "path": "control"
+          }
+        },
+        {
+          "uses": "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+          "with": {
+            "node-version": "22.22.0"
+          }
+        },
+        {
+          "name": "Bind original artifact and reject duplicate dispatch",
+          "env": {
+            "API_TOKEN": "${{ github.token }}"
+          },
+          "run": "node control/scripts/replay-acceptance.mjs acquire"
+        },
+        {
+          "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "with": {
+            "ref": "85ea853102765077f3a0d86a97403bff0c8b43c0",
+            "persist-credentials": false,
+            "path": "trusted"
+          }
+        },
+        {
+          "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "with": {
+            "ref": "a52a4e50361a73afdbc6b6dd4b287d565b81b297",
+            "persist-credentials": false,
+            "path": "base"
+          }
+        },
+        {
+          "name": "Validate ZIP before extraction",
+          "run": "python3 control/scripts/extract-replay-artifact.py evidence/original-agent.zip artifact"
+        },
+        {
+          "name": "Run unchanged pinned verifier and frozen 16-case suite",
+          "run": "node control/scripts/replay-acceptance.mjs replay"
+        },
+        {
+          "name": "Preserve bounded machine-readable evidence in workflow logs",
+          "if": "${{ always() }}",
+          "shell": "bash",
+          "run": "python3 - <<'PY'\nfrom pathlib import Path\nimport hashlib\nfor name in ('binding.json','extracted-manifest.json','result.json','failure.json'):\n p=Path('evidence')/name\n if p.is_file():\n  data=p.read_bytes()\n  assert len(data)<131072\n  print('EVIDENCE_FILE',name,'SHA256',hashlib.sha256(data).hexdigest())\n  print(data.decode('utf-8'))\nPY"
+        },
+        {
+          "name": "Remove any remaining pinned candidate containers",
+          "if": "${{ always() }}",
+          "shell": "bash",
+          "run": "image='node:22.22.0-alpine@sha256:e4bf2a82ad0a4037d28035ae71529873c069b13eb0455466ae0bc13363826e34'\nids=$(docker ps -aq --filter \"ancestor=$image\")\nif [ -n \"$ids\" ]; then docker rm -f $ids; fi\ntest -z \"$(docker ps -aq --filter \"ancestor=$image\")\""
+        }
+      ]
+    }
+  }
+}
